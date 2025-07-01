@@ -1,0 +1,97 @@
+# This is the root CloudFormation stack. It deploys the nested stacks for the entire infrastructure.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Root stack for the Real-Time Stock Ticker application.
+  This stack deploys all the necessary infrastructure components using nested stacks.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'realtime-stock-ticker'
+    Description: A name for the project to be used as a prefix for resources.
+
+  KubernetesVersion:
+    Type: String
+    Default: '1.28'
+    Description: The desired Kubernetes version for the EKS cluster.
+
+  KafkaVersion:
+    Type: String
+    Default: '2.8.1'
+    Description: The desired Kafka version for the MSK cluster.
+
+Outputs:
+  EKSClusterName:
+    Description: The name of the EKS cluster.
+    Value: !GetAtt EKSStack.Outputs.ClusterName
+  EKSClusterEndpoint:
+    Description: The endpoint for the EKS cluster's Kubernetes API.
+    Value: !GetAtt EKSStack.Outputs.ClusterEndpoint
+  MSKBootstrapBrokersTLS:
+    Description: The TLS bootstrap brokers for the MSK cluster.
+    Value: !GetAtt MSKStack.Outputs.BootstrapBrokersTLS
+  ECRRepositoryUrls:
+    Description: The URLs of the ECR repositories.
+    Value: !GetAtt ECRStack.Outputs.RepositoryUrls
+  WebSocketApiEndpoint:
+    Description: The endpoint URL for the WebSocket API.
+    Value: !GetAtt ApiGatewayStack.Outputs.WebSocketApiEndpoint
+  ConnectionsTableName:
+    Description: The name of the DynamoDB table for WebSocket connections.
+    Value: !GetAtt ApiGatewayStack.Outputs.ConnectionsTableName
+    
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./vpc.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+
+  IAMStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./iam.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+
+  EKSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./eks.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        KubernetesVersion: !Ref KubernetesVersion
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PrivateSubnetIds: !GetAtt VPCStack.Outputs.PrivateSubnetIds
+        EKSClusterRoleArn: !GetAtt IAMStack.Outputs.EKSClusterRoleArn
+        FargatePodExecutionRoleArn: !GetAtt IAMStack.Outputs.FargatePodExecutionRoleArn
+      DependsOn:
+        - VPCStack
+        - IAMStack
+
+  MSKStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./msk.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+        KafkaVersion: !Ref KafkaVersion
+        VpcId: !GetAtt VPCStack.Outputs.VpcId
+        PrivateSubnetIds: !GetAtt VPCStack.Outputs.PrivateSubnetIds
+      DependsOn: VPCStack
+
+  ECRStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./ecr.yaml
+
+  ApiGatewayStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: ./api_gateway.yaml
+      Parameters:
+        ProjectName: !Ref ProjectName
+
+

@@ -1,0 +1,50 @@
+# This nested stack creates the EKS cluster and Fargate profile.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EKS stack for the Real-Time Stock Ticker application.'
+
+Parameters:
+  ProjectName:
+    Type: String
+  KubernetesVersion:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  EKSClusterRoleArn:
+    Type: String
+  FargatePodExecutionRoleArn:
+    Type: String
+
+Outputs:
+  ClusterName:
+    Description: The name of the EKS cluster.
+    Value: !Ref EKSCluster
+  ClusterEndpoint:
+    Description: The endpoint for the EKS cluster's Kubernetes API.
+    Value: !GetAtt EKSCluster.Endpoint
+
+Resources:
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Sub '${ProjectName}-cluster'
+      Version: !Ref KubernetesVersion
+      RoleArn: !Ref EKSClusterRoleArn
+      ResourcesVpcConfig:
+        SubnetIds: !Ref PrivateSubnetIds
+        EndpointPrivateAccess: true
+        EndpointPublicAccess: true
+
+  FargateProfile:
+    Type: AWS::EKS::FargateProfile
+    Properties:
+      ClusterName: !Ref EKSCluster
+      FargateProfileName: !Sub '${ProjectName}-fargate-profile'
+      PodExecutionRoleArn: !Ref FargatePodExecutionRoleArn
+      Subnets: !Ref PrivateSubnetIds
+      Selectors:
+        - Namespace: default
+        - Namespace: kube-system
+

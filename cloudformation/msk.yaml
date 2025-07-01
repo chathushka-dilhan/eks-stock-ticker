@@ -1,0 +1,48 @@
+# This nested stack creates the Amazon MSK cluster.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'MSK stack for the Real-Time Stock Ticker application.'
+
+Parameters:
+  ProjectName:
+    Type: String
+  KafkaVersion:
+    Type: String
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+
+Outputs:
+  BootstrapBrokersTLS:
+    Description: The TLS bootstrap brokers for the MSK cluster.
+    Value: !GetAtt MSKCluster.BootstrapBrokersTls
+
+Resources:
+  MSKSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-msk-sg'
+      GroupDescription: 'Security group for MSK cluster'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 9094 # For TLS
+          ToPort: 9094
+          CidrIp: !GetAtt [VPCStack, Outputs.VpcCidrBlock] # Reference from root would be needed
+
+  MSKCluster:
+    Type: AWS::MSK::Cluster
+    Properties:
+      ClusterName: !Sub '${ProjectName}-msk-cluster'
+      KafkaVersion: !Ref KafkaVersion
+      NumberOfBrokerNodes: 2
+      BrokerNodeGroupInfo:
+        InstanceType: kafka.t3.small
+        ClientSubnets: !Ref PrivateSubnetIds
+        SecurityGroups:
+          - !Ref MSKSecurityGroup
+      EncryptionInfo:
+        EncryptionInTransit:
+          ClientBroker: TLS
+

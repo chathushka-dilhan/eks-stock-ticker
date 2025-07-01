@@ -1,0 +1,44 @@
+# This nested stack creates the WebSocket API Gateway and DynamoDB table.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway and DynamoDB stack for the Real-Time Stock Ticker application.'
+
+Parameters:
+  ProjectName:
+    Type: String
+
+Outputs:
+  WebSocketApiEndpoint:
+    Description: The endpoint URL for the WebSocket API.
+    Value: !Sub 'wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${WebSocketStage}'
+  ConnectionsTableName:
+    Description: The name of the DynamoDB table for WebSocket connections.
+    Value: !Ref ConnectionsDynamoDBTable
+
+Resources:
+  ConnectionsDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}-websocket-connections'
+      AttributeDefinitions:
+        - AttributeName: 'connectionId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'connectionId'
+          KeyType: 'HASH'
+      BillingMode: PAY_PER_REQUEST
+
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${ProjectName}-websocket-api'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: '$request.body.action'
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: 'prod'
+      AutoDeploy: true
+

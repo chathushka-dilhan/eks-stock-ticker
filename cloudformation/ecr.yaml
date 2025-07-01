@@ -1,0 +1,29 @@
+# This nested stack creates the ECR repositories.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECR stack for the Real-Time Stock Ticker application.'
+
+Outputs:
+  RepositoryUrls:
+    Description: The URLs of the created ECR repositories.
+    Value: !Join
+      - ','
+      - 
+        - !GetAtt StockPriceGeneratorRepo.RepositoryUri
+        - !GetAtt WebSocketPublisherRepo.RepositoryUri
+        
+Resources:
+  StockPriceGeneratorRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: 'stock-price-generator'
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  WebSocketPublisherRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: 'websocket-publisher'
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
