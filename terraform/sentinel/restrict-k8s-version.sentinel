@@ -1,0 +1,15 @@
+# This policy restricts EKS clusters to a list of approved Kubernetes versions.
+
+import "tfplan/v2" as tfplan
+
+# Allowed Kubernetes versions
+allowed_versions = ["1.27", "1.28", "1.29"]
+
+# Rule: EKS clusters must use an approved Kubernetes version
+main = rule {
+  all tfplan.resource_changes as _, rc {
+    rc.type is "aws_eks_cluster" and
+      rc.mode is "create" and
+      rc.change.after.version in allowed_versions
+  }
+}

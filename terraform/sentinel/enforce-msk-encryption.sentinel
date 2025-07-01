@@ -1,0 +1,19 @@
+# This policy ensures that all MSK clusters have in-transit encryption enabled.
+
+import "tfplan/v2" as tfplan
+
+# Rule: Enforce in-transit encryption for MSK clusters
+main = rule {
+  # Iterate over all MSK cluster resources in the plan
+  all tfplan.resource_changes as _, rc {
+    rc.type is "aws_msk_cluster" and
+      rc.mode is "create" and
+      # Check if encryption_info is configured
+      (
+        rc.change.after.encryption_info is null or
+        rc.change.after.encryption_info[0].encryption_in_transit is null or
+        rc.change.after.encryption_info[0].encryption_in_transit[0].client_broker is "PLAINTEXT" or
+        rc.change.after.encryption_info[0].encryption_in_transit[0].client_broker is null
+      ) is false
+  }
+}

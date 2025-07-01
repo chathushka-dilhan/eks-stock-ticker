@@ -1,0 +1,21 @@
+# This policy enforces the presence of specific tags on all resources.
+
+import "tfplan/v2" as tfplan
+
+# Mandatory tags
+mandatory_tags = ["Owner", "Project"]
+
+# Find all resources that can be tagged
+# A helper function to check if a resource has tags
+violating_resources = filter tfplan.resource_changes as _, rc {
+  rc.mode is "create" and
+    (rc.change.after.tags else {}) is not null and
+    (all mandatory_tags as tag {
+      rc.change.after.tags[tag] is not null
+    }) is false
+}
+
+# Rule: All taggable resources must have the mandatory tags
+main = rule {
+  length(violating_resources) is 0
+}
